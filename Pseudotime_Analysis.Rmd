@@ -1,0 +1,723 @@
+---
+title: "Nnat-Pseudotime Analysis"
+author: "Adrien Osakwe"
+date: "2023-07-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Premise
+This notebook contains the code required to recreate the plots used in Fig. 1, and supp. Fig. 1-2 of the manuscript.
+
+## Load Packages & Data
+
+This analysis uses data from the Byrnes et al. study from the Sneddon group [in Nature Communications](https://www.nature.com/articles/s41467-018-06176-3#data-availability) 
+
+-   [full objects](https://figshare.com/collections/Lineage_dynamics_of_murine_pancreatic_development_at_single-cell_resolution/4158458)
+-   [10X Data Files (GSE101099)](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE101099)
+
+This analysis script makes use of the 10X Data files store in the GEO (see above).
+
+##Relative Paths
+
+To facilitate your use of this notebook, all sections requiring relative paths have been marked with *#TODO Update Relative Path*
+to indicate that they need to be changed to match your folder structure.
+```{r, include=FALSE}
+set.seed(1234)
+library(tidyverse)
+library(patchwork)
+library(Seurat)
+```
+
+```{r}
+#TODO Update Relative Path
+#Notes: the paths here are folders containing the 10X files for each sample
+#samples.txt is a txt file with the GSM ids for each sample separate lines.
+#you can replace the line with a vector of GSM ids
+samples <- read.table("./Datasets/Sneddon/samples.txt")[,1]
+paths <- paste("./Datasets/Sneddon/scRNA_",samples,'/',sep = '')
+
+sce_list <- list()
+#Creating Seurat Objects for ALL samples
+for (i in 1:length(samples)){
+  seur_ob <- Read10X(paths[i]) %>%
+    CreateSeuratObject(min.cells = 3,min.genes = 200,
+                       project = samples[i])
+  mito.genes <- grep(pattern = "^mt-", x = rownames(seur_ob),
+                     value = TRUE)
+  percent.mito <- Matrix::colSums(seur_ob@assays$RNA[mito.genes,])/
+    Matrix::colSums(seur_ob@assays$RNA)
+
+  seur_ob <- AddMetaData(object = seur_ob, metadata = percent.mito,
+                         col.name = "percent.mito")
+  seur_ob <- NormalizeData(object = seur_ob, normalization.method =
+                             "LogNormalize",scale.factor = 10000)
+  seur_ob <- FindVariableFeatures(object = seur_ob, mean.function =
+                                    ExpMean, dispersion.function =
+                                    LogVMR,x.low.cutoff = 0.0125, 
+                                  x.high.cutoff = 3, y.cutoff = 0.5)
+  seur_ob <- ScaleData(object = seur_ob, vars.to.regress = c("nCount_RNA"))
+  sce_list[[samples[i]]] <- seur_ob
+}
+#TODO Update Relative Path
+saveRDS(sce_list,"./Datasets/Sneddon/seur_list.rds")
+
+```
+
+## Merging Data
+
+```{r}
+#TODO Update Relative Path
+sce_list <- readRDS("./Datasets/Sneddon/seur_list.rds")
+#Only using the 10X v2 objects 
+sce_list <- sce_list[5:8]
+names(sce_list)
+```
+### Endothelial Integration
+
+#### E12
+```{r}
+sceE12 <- FindVariableFeatures(object = sce_list[[1]], mean.function =
+                                    ExpMean, dispersion.function =
+                                    LogVMR,x.low.cutoff = 0.0125, 
+                                  x.high.cutoff = 3, y.cutoff = 0.5)
+sceE12 <- ScaleData(object = sceE12, vars.to.regress = c("nCount_RNA"))
+sceE12 <- RunPCA(sceE12)
+sceE12 <- FindNeighbors(sceE12,dims = 1:15)
+sceE12 <- FindClusters(sceE12,resolution = 0.8)
+sceE12 <- RunUMAP(sceE12, dims = 1:15)
+#UMAPPlot(sce[,sce$seurat_clusters %in% c(6,8,14,16,21)])
+#Endothelial Markers
+UMAPPlot(sceE12) +
+VlnPlot(sceE12,c('Gcg','Ins1','Fev','Nnat','Ins2','Chga','Spp1','Neurog3','Pdx1'))
+
+#Store endothelial cells
+endo12 <- sceE12[,sceE12$seurat_clusters %in% c(9,14,17)]
+endo12 <- RunPCA(endo12)
+endo12 <- FindNeighbors(endo12,dims = 1:15)
+endo12 <- FindClusters(endo12,resolution = 0.8)
+endo12 <- RunUMAP(endo12, dims = 1:15)
+UMAPPlot(endo12)
+FeaturePlot(endo12,c('Ins1','Ins2','Nnat','Gcg','Spp1','Neurog3','Fev'))
+```
+#### E14
+```{r}
+sceE14 <- FindVariableFeatures(object = sce_list[[2]], mean.function =
+                                    ExpMean, dispersion.function =
+                                    LogVMR,x.low.cutoff = 0.0125, 
+                                  x.high.cutoff = 3, y.cutoff = 0.5)
+sceE14 <- ScaleData(object = sceE14, vars.to.regress = c("nCount_RNA"))
+sceE14 <- RunPCA(sceE14)
+sceE14 <- FindNeighbors(sceE14,dims = 1:15)
+sceE14 <- FindClusters(sceE14,resolution = 0.8)
+sceE14 <- RunUMAP(sceE14, dims = 1:15)
+#Endothelial Markers
+UMAPPlot(sceE14) +
+VlnPlot(sceE14,c('Gcg','Ins1','Fev','Nnat','Ins2','Chga','Spp1','Neurog3','Pdx1'))
+
+
+#Store endothelial cells
+endo14 <- sceE14[,sceE14$seurat_clusters %in% c(6,8,14,16,21)]
+endo14 <- RunPCA(endo14)
+endo14 <- FindNeighbors(endo14,dims = 1:15)
+endo14 <- FindClusters(endo14,resolution = 0.8)
+endo14 <- RunUMAP(endo14, dims = 1:15)
+UMAPPlot(endo14)
+FeaturePlot(endo14,c('Ins1','Ins2','Nnat','Gcg','Spp1','Neurog3','Fev'))
+
+```
+
+
+
+#### E17
+```{r}
+sceE17 <- merge(sce_list[[3]],sce_list[[4]],add.cell.ids = names(sce_list)[3:4])
+
+sceE17 <- FindVariableFeatures(object = sceE17, mean.function =
+                                    ExpMean, dispersion.function =
+                                    LogVMR,x.low.cutoff = 0.0125, 
+                                  x.high.cutoff = 3, y.cutoff = 0.5)
+sceE17 <- ScaleData(object = sceE17, vars.to.regress = c("nCount_RNA"))
+sceE17 <- RunPCA(sceE17)
+sceE17 <- FindNeighbors(sceE17,dims = 1:15)
+sceE17 <- FindClusters(sceE17,resolution = 0.8)
+sceE17 <- RunUMAP(sceE17, dims = 1:15)
+#Endothelial Markers
+UMAPPlot(sceE17) +
+VlnPlot(sceE17,c('Gcg','Ins1','Fev','Nnat','Ins2','Chga','Spp1','Neurog3','Pdx1'))
+
+
+#Store endothelial cells
+endo17 <- sceE17[,sceE17$seurat_clusters %in% c(8,10,12,17)]
+endo17 <- RunPCA(endo17)
+endo17 <- FindNeighbors(endo17,dims = 1:15)
+endo17 <- FindClusters(endo17,resolution = 0.8)
+endo17 <- RunUMAP(endo17, dims = 1:15)
+UMAPPlot(endo17)
+FeaturePlot(endo17,c('Ins1','Ins2','Nnat','Gcg','Spp1','Neurog3','Fev'))
+
+```
+
+
+#### Merge All
+```{r}
+#TODO Update Relative Path (the next three lines can be omitted)
+endo12 <- readRDS("./Datasets/Sneddon/endo12_v2.rds")
+endo14 <- readRDS("./Datasets/Sneddon/endo14_v2.rds")
+endo17 <- readRDS("./Datasets/Sneddon/endo17_v2.rds")
+
+#Merging objects
+sce <- merge(endo12,c(endo14,endo17),add.cell.ids = c('E12.5','E14.5','E17.5'))
+rm('endo12')
+rm('endo14')
+rm('endo17')
+
+sce <- FindVariableFeatures(object = sce, mean.function =
+                                    ExpMean, dispersion.function =
+                                    LogVMR,x.low.cutoff = 0.0125, 
+                                  x.high.cutoff = 3, y.cutoff = 0.5)
+sce <- ScaleData(object = sce, vars.to.regress = c("nCount_RNA"))
+sce <- RunPCA(sce)
+sce <- FindNeighbors(sce,dims = 1:15)
+sce <- FindClusters(sce,resolution = 0.8)
+sce <- RunUMAP(sce, dims = 1:15)
+UMAPPlot(sce,group.by = 'orig.ident') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'))
+
+```
+
+### Harmony Alignment
+
+```{r}
+library(harmony)
+sce <- RunHarmony(sce,group.by.vars = 'orig.ident')
+sce <- FindNeighbors(sce,dims = 1:15,reduction = 'harmony')
+sce <- FindClusters(sce,resolution = 0.8)
+
+sce <-RunUMAP(sce, reduction = "harmony", dims = 1:30)
+
+sce$dev_stage <- sapply(sce$orig.ident,function(a){unlist(strsplit(a,'_'))[2]})
+DimPlot(sce,group.by = c("dev_stage","ident"))
+
+DimPlot(sce,group.by = 'dev_stage') + 
+  labs(title = 'Embryonic Stage',x = 'UMAP1',y = 'UMAP2')  +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))  
+
+FeaturePlot(sce,c('Neurog3','Spp1','Fev','Chgb','Pax4','Mafb','Ins1','Ins2','Nnat','Peg10','Gcg','Irx2')) 
+
+```
+
+
+```{r}
+##Cell Type labelling
+
+sce$celltype <- NA
+sce$celltype[sce$seurat_clusters == '9'] <- 'Ngn3+/Spp1+'
+sce$celltype[sce$seurat_clusters == '4'] <- 'Late Beta'
+sce$celltype[sce$seurat_clusters == '3'] <- 'Early Beta'
+sce$celltype[sce$seurat_clusters == '2'] <- 'Fev+/Chgb+'
+sce$celltype[sce$seurat_clusters == '1'] <- 'Ngn3+'
+sce$celltype[sce$seurat_clusters == '0'] <- 'Alpha'
+sce$celltype[sce$seurat_clusters == '12'] <- 'Epsilon'
+sce$celltype[sce$seurat_clusters == '7'] <- 'Delta'
+sce$celltype[sce$seurat_clusters == '8'] <- 'Acinar'
+sce$celltype[sce$seurat_clusters == '13'] <- 'Acinar'
+sce$celltype[sce$seurat_clusters == '5'] <- 'Ductal'
+sce$celltype[sce$seurat_clusters == '6'] <- 'Prolif. Acinar'
+
+#Not Epithelial
+
+sce$celltype[sce$seurat_clusters == '15'] <- 'Unknown'
+sce$celltype[sce$seurat_clusters == '14'] <- 'Fibroblast'
+sce$celltype[sce$seurat_clusters == '11'] <- 'Erythroid-Like'
+sce$celltype[sce$seurat_clusters == '10'] <- 'Enterochromaffin'
+
+sce$celltype <- factor(sce$celltype,levels = 
+                         c('Ngn3+/Spp1+',"Ngn3+","Fev+/Chgb+",'Early Beta','Late Beta',
+                           'Alpha','Delta','Ductal','Epsilon','Prolif. Acinar','Acinar',"Enterochromaffin","Erythroid-Like",'Fibroblast'))
+
+DimPlot(sce,group.by = 'celltype') +
+  labs(title = 'Mouse Pancreas Cells E12-E17',x='UMAP1',y = 'UMAP2')    +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+
+#Cell Type Proportion Bar Plot
+cell_prop <- as.data.frame(table(sce$dev_stage[sce$celltype %in% c('Ngn3+/Spp1+',"Ngn3+",'Fev+/Chgb+',"Early Beta","Late Beta")],sce$celltype[sce$celltype %in% c('Ngn3+/Spp1+','Ngn3+','Fev+/Chgb+',"Early Beta","Late Beta")])) %>%
+  group_by(Var1) %>%
+  mutate(Proportion = Freq / sum(Freq))
+cell_prop <- na.omit(cell_prop)
+cell_prop$Var2 <- factor(cell_prop$Var2,levels =
+                           c('Ngn3+/Spp1+','Ngn3+','Fev+/Chgb+',"Early Beta","Late Beta"))
+custom_palette <- c(
+  RColorBrewer::brewer.pal(8, "Set1"),   # Use 8 colors from Set2
+  RColorBrewer::brewer.pal(8, "Set3")               # Use 6 colors from Viridis
+)
+ggplot(cell_prop,aes(Var1,Proportion,fill = Var2)) + 
+  geom_bar(stat = 'identity',color = 'black') + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"),
+plot.title = element_text(hjust = 0.5)) +
+    scale_fill_manual(values = custom_palette) +
+  scale_y_continuous(expand = expansion(mult = 0)) +
+  labs(x = 'Embryonic Stage',y = 'Cell State Proportion',
+       title = 'Beta Cell Timecourse from E12-E17',
+       fill = 'Cell State')    +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+
+
+FeaturePlot(sce,'Nnat') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 10, face = 'plain')) 
+
+```
+
+
+```{r}
+beta <- sce[,sce$seurat_clusters %in% c(1,2,3,4,9)]
+DimPlot(beta) +
+VlnPlot(beta,c('Ins1','Ins2','Nnat','Pdx1','Fev','Neurog3','Spp1'))
+
+```
+
+```{r}
+library(monocle3)
+library(SeuratWrappers)
+cds <- as.cell_data_set(sce)
+cds <- cluster_cells(cds,'UMAP',cluster_method = 'leiden')
+plot_cells(cds, color_cells_by = "partition")
+cds <- learn_graph(cds)
+plot_cells(cds,
+           label_groups_by_cluster=FALSE,
+           label_leaves=FALSE,
+           label_branch_points=FALSE)
+cds <- order_cells(cds,reduction_method = 'UMAP')
+plot_cells(cds,color_cells_by = "pseudotime")
+```
+
+
+
+
+```{r}
+## Combining Embryonic and Adult Beta cells from Theis group study
+#TODO Update Relative Path
+adult_sce <- readRDS('./Datasets/mice_adult_pancreas.rds')
+unique(adult_sce$cell_type)
+adult_beta <- adult_sce[,adult_sce$cell_type == 'type B pancreatic cell']
+
+beta$development_stage <- beta$seurat_clusters
+
+adult_beta$development_stage <- 'Adult'
+adult_beta$orig.ident <- adult_beta$donor_id
+library(biomaRt)
+ensembl <- useMart("ensembl", dataset="mmusculus_gene_ensembl")
+gene <- getBM(attributes=c('ensembl_gene_id','external_gene_name'), filters = 'ensembl_gene_id', values = rownames(adult_beta), mart = ensembl)
+gene <- distinct(gene)
+
+
+
+adult_beta <- adult_beta[rownames(adult_beta) %in% gene$ensembl_gene_id,]
+id <- match(rownames(adult_beta),gene$ensembl_gene_id)
+table(rownames(adult_beta) == gene$ensembl_gene_id[id])
+rownames(adult_beta@assays$RNA@counts)<- gene$external_gene_name[id]
+rownames(adult_beta@assays$RNA@data)<- gene$external_gene_name[id]
+adult_beta
+
+#Aligning Genes
+adult_beta <- adult_beta[rownames(adult_beta) %in% rownames(beta),]
+beta <- beta[rownames(beta) %in% rownames(adult_beta),]
+
+####Merging
+beta_sce <- merge(beta,adult_beta,add.cell.ids = c('Embryonic',"Adult"))
+
+beta_sce <- FindVariableFeatures(object = beta_sce, mean.function =
+                                    ExpMean, dispersion.function =
+                                    LogVMR,x.low.cutoff = 0.0125, 
+                                  x.high.cutoff = 3, y.cutoff = 0.5)
+beta_sce <- ScaleData(object = beta_sce, vars.to.regress = c("nCount_RNA"))
+beta_sce <- RunPCA(beta_sce)
+beta_sce <- FindNeighbors(beta_sce,dims = 1:15)
+beta_sce <- FindClusters(beta_sce,resolution = 0.8)
+beta_sce <- RunUMAP(beta_sce, dims = 1:15)
+UMAPPlot(beta_sce,group.by = 'orig.ident')
+
+
+library(harmony)
+beta_sce$donor_id[is.na(beta_sce$donor_id)] <- beta$orig.ident
+beta_sce <- RunHarmony(beta_sce,group.by.vars = 'donor_id')
+beta_sce <- FindNeighbors(beta_sce,dims = 1:15,reduction = 'harmony')
+beta_sce <- FindClusters(beta_sce,resolution = 0.8)
+
+beta_sce <-RunUMAP(beta_sce, reduction = "harmony", dims = 1:30)
+DimPlot(beta_sce,group.by = c("orig.ident","development_stage"))
+```
+
+
+```{r}
+#Plotting expression
+beta_sce$development_stage <- as.character(beta_sce$development_stage)
+
+
+beta_sce$development_stage[beta_sce$development_stage == '9'] <- 'Ngn3+/Spp1+'
+beta_sce$development_stage[beta_sce$development_stage == '1'] <- 'Ngn3+'
+beta_sce$development_stage[beta_sce$development_stage == '2'] <- 'Fev+/Chgb+'
+beta_sce$development_stage[beta_sce$development_stage == '3'] <- 'Early Beta'
+beta_sce$development_stage[beta_sce$development_stage == '4'] <- 'Late Beta'
+beta_sce$development_stage[beta_sce$development_stage == 'Adult'] <- 'Adult Beta'
+
+beta_sce$development_stage[is.na(beta_sce$development_stage)] <- "Fev+/Chgb+"
+table(beta_sce$development_stage)
+#Idents(beta_sce) <- 'seurat_clusters'
+beta_sce$development_stage <- factor(beta_sce$development_stage,
+                                     levels = c('Ngn3+/Spp1+','Ngn3+','Fev+/Chgb+',"Early Beta","Late Beta","Adult Beta"))
+Idents(beta_sce) <- 'development_stage'
+
+  #'Ins1','Ins2','Nnat','Iapp',"Neurog3","Spp1","Fev",'Pdx1','Pax4','Chgb'
+```
+
+
+```{r}
+table(beta_sce$development_stage)
+
+#FACS DGE Results
+#TODO Update Relative Path
+facs <- read.csv("./FACS_DGE_Rutter.csv",header = T)
+facs <- facs[!duplicated(facs$Symbol),]
+rownames(facs) <- facs$Symbol
+beta_facs <- facs[,12:ncol(facs)]
+library(reshape2)
+beta_facs <- melt(as.matrix(beta_facs))
+beta_facs$Var2 <- str_replace(beta_facs$Var2,'.1','') %>%
+  str_replace('.2','') %>%
+  str_replace('.3','')
+beta_facs <- beta_facs[beta_facs$Var1 == 'Nnat',]
+beta_facs$Nnat <- beta_facs$value
+beta_facs$Beta_Cell <- beta_facs$Var2
+ggplot(beta_facs,aes(Var2,Nnat,fill = Beta_Cell)) + geom_boxplot() + 
+  labs(y = 'Log Expression',title = paste('Log2FC = ',facs$log2FoldChange[facs$Symbol == 'Nnat'],' P-val = ',facs$padj[facs$Symbol == 'Nnat']),
+       x = 'Beta Cell')
+facs$abs_lfc <- abs(facs$log2FoldChange)
+facs$sig_p <- facs$padj < 0.05 & facs$abs_lfc > 2 #& facs$baseMean > 2000
+facs$log_baseMean <- log10(facs$baseMean)
+
+
+```
+
+
+
+```{r}
+summary(as.vector(beta_sce@assays$RNA['Nnat',beta_sce$development_stage %in% c('Late Beta')]))
+length(which(as.vector(beta_sce@assays$RNA['Nnat',beta_sce$development_stage %in% c('Adult Beta')]) > 0.4))
+table(beta_sce$development_stage)
+summary(as.vector(beta_sce@assays$RNA['Nnat',beta_sce$development_stage %in% c('Adult Beta')]))
+
+adult_beta$nnat <- ifelse(as.vector(beta_sce@assays$RNA['Nnat',beta_sce$development_stage %in% c('Adult Beta')]) > 0,'Nnat+','Nnat-')
+table(adult_beta$nnat)
+Idents(adult_beta) <- 'nnat'
+VlnPlot(adult_beta,c(facs$Symbol[1:7],'Cd81','Mafb','Sst'))
+
+```
+
+
+```{r}
+nnat_df <- data.frame(Ins1 = as.vector(adult_beta@assays$RNA['Ins1',]),
+                      Ins2 = as.vector(adult_beta@assays$RNA['Ins2',]),
+                      Nnat = as.vector(adult_beta@assays$RNA['Nnat',]),
+                      Rbp4 = as.vector(adult_beta@assays$RNA['Rbp4',]))
+ggplot(nnat_df,aes(Ins2,Nnat,color = Rbp4)) + geom_point(alpha = 1) +
+  scale_color_gradient(low = 'gray',high = 'red')
+table(nnat_df$Nnat  < 2)
+DimPlot(adult_beta,group.by = 'nnat')
+adult_beta[['RNA']]@meta.features <- data.frame(row.names =
+                                                 rownames(adult_beta[['RNA']]))
+adult_beta <- FindVariableFeatures(object = adult_beta, mean.function =
+                                    ExpMean, dispersion.function =
+                                    LogVMR,x.low.cutoff = 0.0125, 
+                                  x.high.cutoff = 3, y.cutoff = 0.5)
+adult_beta <- ScaleData(object = adult_beta, vars.to.regress = c("nCount_RNA"))
+adult_beta <- RunPCA(adult_beta)
+adult_beta <- FindNeighbors(adult_beta,dims = 1:15)
+adult_beta <- FindClusters(adult_beta,resolution = 0.8)
+adult_beta <- RunUMAP(adult_beta, dims = 1:15)
+DimPlot(adult_beta,group.by = 'nnat')
+
+```
+
+
+## Make Plots
+
+# A-C + Supp
+```{r}
+DimPlot(sce[,sce$seurat_clusters != 15],group.by = 'celltype') +
+  labs(title = 'Mouse Pancreas Cells E12-E17',x='UMAP1',y = 'UMAP2')    +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+#TODO Update Relative Path
+ggsave('./Figures/fulldataset_umap_italic.png')
+######################################################
+#Cell Type Proportion Bar Plot
+ggplot(cell_prop,aes(Var1,Proportion,fill = Var2)) + 
+  geom_bar(stat = 'identity',color = 'black') + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"),
+plot.title = element_text(hjust = 0.5)) +
+    scale_fill_manual(values = custom_palette) +
+  scale_y_continuous(expand = expansion(mult = 0)) +
+  labs(x = 'Embryonic Stage',y = 'Cell State Proportion',
+       title = 'Beta Cell Timecourse from E12-E17',
+       fill = 'Cell State')    +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+#TODO Update Relative Path
+ggsave('./Figures/beta_prop_italic.png')
+#############################################
+FeaturePlot(sce,'Nnat') +
+  labs(x='UMAP1',y = 'UMAP2') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+#TODO Update Relative Path
+ggsave('./Figures/nnat_umap.png')
+
+#################################################################
+plot_cells(cds[,colData(cds)$seurat_clusters != 15],
+                 color_cells_by = "pseudotime",
+                 label_cell_groups=F,
+                 label_leaves=FALSE,
+                 label_branch_points=FALSE,
+                 label_roots = F,
+                 graph_label_size=1.5,
+                 cell_size = 1,
+                 trajectory_graph_color = 'black') +
+        labs(title ='Pseudotime Analysis E12-E17',
+             x = 'UMAP1',
+             y = 'UMAP2',
+             fill = 'Pseudotime')  +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',hjust = 0.5,  family="sans"),
+        axis.title = element_text(size=16,  face = 'plain',  family="sans"),
+        legend.text = element_text(size = 16, face = 'italic',  family="sans"),
+        axis.line=element_line(linewidth = 10)) 
+#TODO Update Relative Path
+ggsave('./Figures/pseudotime.png')
+
+```
+
+## D-F + Supp
+```{r}
+
+VlnPlot(beta_sce,'Ins1') +
+  labs(x = 'Cell State') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+          axis.text = element_text(face = 'italic'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+#TODO Update Relative Path
+ggsave('./Figures/ins1.png')
+# ggsave('./Figures/ins1.eps')
+VlnPlot(beta_sce,'Ins2') +
+    labs(x = 'Cell State') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+          axis.text = element_text(face = 'italic'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+#TODO Update Relative Path
+ggsave('./Figures/ins2.png')
+# ggsave('./Figures/ins2.eps')
+VlnPlot(beta_sce,'Nnat') +
+    labs(x = 'Cell State') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        axis.text = element_text(face = 'italic'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+#TODO Update Relative Path
+ggsave('./Figures/nnat.png')
+
+
+for (gene_marker in c("Spp1","Neurog3","Fev","Pdx1","Pax4","Ins1","Nnat","Iapp")){
+print(  VlnPlot(beta_sce,gene_marker) +
+    labs(x = 'Cell State') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+          axis.text = element_text(face = 'italic'),
+        legend.text = element_text(size = 16, face = 'italic')) )
+  #TODO Update Relative Path
+  ggsave(paste('./Figures/',gene_marker,".png",sep = ""))
+}
+
+```
+
+## Supp 2
+```{r}
+beta <- sce[,sce$seurat_clusters %in% c(1,2,3,4,9)]
+for (gene_marker in c("Spp1","Neurog3","Fev","Pdx1","Pax4","Ins1","Nnat","Iapp")){
+  print(FeaturePlot(beta,gene_marker) +
+  labs(x = 'UMAP1',y = "UMAP2") +
+      ylim(c(-3,6)) +
+      xlim(c(-11,7)) +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) )
+  #TODO Update Relative Path
+  ggsave(paste('./Figures/',gene_marker,"_umap.png",sep = ""))
+}
+DimPlot(beta,group.by = 'celltype') +
+  labs(title = 'Mouse Beta Cells E12-E17',x='UMAP1',y = 'UMAP2')    +
+  ylim(c(-2,6)) +
+  xlim(c(-11,7)) +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+#TODO Update Relative Path
+ggsave('./Figures/beta_umap_italic.png')
+```
+```{r}
+##A Adult Islet plots
+#TODO Update Relative Path
+adult_sce <- readRDS('./Datasets/mice_adult_pancreas.rds')
+ensembl <- useMart("ensembl", dataset="mmusculus_gene_ensembl")
+gene <- getBM(attributes=c('ensembl_gene_id','external_gene_name'), filters = 'ensembl_gene_id', values = rownames(adult_sce), mart = ensembl)
+gene <- distinct(gene)
+
+
+
+adult_sce <- adult_sce[rownames(adult_sce) %in% gene$ensembl_gene_id,]
+id <- match(rownames(adult_sce),gene$ensembl_gene_id)
+table(rownames(adult_sce) == gene$ensembl_gene_id[id])
+rownames(adult_sce@assays$RNA@counts)<- gene$external_gene_name[id]
+rownames(adult_sce@assays$RNA@data)<- gene$external_gene_name[id]
+#### Plot
+FeaturePlot(adult_sce,'Nnat')  +
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) 
+#TODO Update Relative Path
+ggsave('./Figures/adult_nnat.png')
+####
+FeaturePlot(adult_sce,'Ins1') +
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) 
+#TODO Update Relative Path
+ggsave('./Figures/adult_ins1.png')
+####
+FeaturePlot(adult_sce,'Gcg') +
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) 
+#TODO Update Relative Path
+ggsave('./Figures/adult_gcg.png')
+####
+FeaturePlot(adult_sce,'Sst') +
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) 
+#TODO Update Relative Path
+ggsave('./Figures/adult_sst.png')
+####
+adult_sce$cell_type <- as.character(adult_sce$cell_type)
+adult_sce$cell_type[adult_sce$cell_type == "pancreatic A cell"] <- "Alpha"
+adult_sce$cell_type[adult_sce$cell_type == "type B pancreatic cell"] <- "Beta"
+adult_sce$cell_type[adult_sce$cell_type == "pancreatic D cell"] <- "Delta"
+adult_sce$cell_type[adult_sce$cell_type == "pancreatic PP cell"] <- "Pancreatic Progenitor"
+adult_sce$cell_type <- factor(adult_sce$cell_type, levels = c('Alpha',
+                                                              'Beta',
+                                                              'Delta',
+                                                              "Pancreatic Progenitor"))
+Idents(adult_sce) <- 'cell_type'
+DimPlot(adult_sce) +
+  labs(title = 'Adult Mouse Islet Cells',
+       x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+#TODO Update Relative Path
+ggsave('./Figures/adult_celltype.png')
+
+
+#### HVG via scran package
+library(scran)
+adult_beta <- as.SingleCellExperiment(adult_beta)
+dec <- modelGeneVar(adult_beta)
+hvg.var <- getTopHVGs(adult_beta, n=500)
+which(hvg.var == 'Nnat')
+dec <- dec[order(dec$bio,decreasing = T),]
+#TODO Update Relative Path
+write.csv(dec,'./Manuscript/AdrienO_Figure_Panels231020/hvg_list_adult_beta.csv')
+
+
+beta <- as.SingleCellExperiment(beta)
+dec <- modelGeneVar(beta)
+hvg.var <- getTopHVGs(beta, n=500)
+which(hvg.var == 'Nnat')
+dec <- dec[order(dec$bio,decreasing = T),]
+#TODO Update Relative Path
+write.csv(dec,'./Manuscript/AdrienO_Figure_Panels231020/hvg_list_sneddon_beta.csv')
+
+
+sce <- as.SingleCellExperiment(sce)
+dec <- modelGeneVar(sce)
+hvg.var <- getTopHVGs(sce, n=500)
+which(hvg.var == 'Nnat')
+dec <- dec[order(dec$bio,decreasing = T),]
+#TODO Update Relative Path
+write.csv(dec,'./Manuscript/AdrienO_Figure_Panels231020/hvg_list_sneddon_full.csv')
+```
+
+```{r}
+# Mature cell type markers
+markers <- c("Ins1","Gcg","Nnat","Sst")
+for(marker in markers){
+  p1 <- FeaturePlot(sce,marker) +
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'italic'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+  print(p1)
+  #TODO Update Relative Path
+  ggsave(paste("./Figures/embryonic_",marker,".png",sep =''))
+}
+
+```
+
+
+## Session Info
+```{r}
+sessionInfo()
+```
+
