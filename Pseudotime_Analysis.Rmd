@@ -385,78 +385,7 @@ table(beta_sce$development_stage)
 beta_sce$development_stage <- factor(beta_sce$development_stage,
                                      levels = c('Ngn3+/Spp1+','Ngn3+','Fev+/Chgb+',"Early Beta","Late Beta","Adult Beta"))
 Idents(beta_sce) <- 'development_stage'
-
-  #'Ins1','Ins2','Nnat','Iapp',"Neurog3","Spp1","Fev",'Pdx1','Pax4','Chgb'
 ```
-
-
-```{r}
-table(beta_sce$development_stage)
-
-#FACS DGE Results
-#TODO Update Relative Path
-facs <- read.csv("./FACS_DGE_Rutter.csv",header = T)
-facs <- facs[!duplicated(facs$Symbol),]
-rownames(facs) <- facs$Symbol
-beta_facs <- facs[,12:ncol(facs)]
-library(reshape2)
-beta_facs <- melt(as.matrix(beta_facs))
-beta_facs$Var2 <- str_replace(beta_facs$Var2,'.1','') %>%
-  str_replace('.2','') %>%
-  str_replace('.3','')
-beta_facs <- beta_facs[beta_facs$Var1 == 'Nnat',]
-beta_facs$Nnat <- beta_facs$value
-beta_facs$Beta_Cell <- beta_facs$Var2
-ggplot(beta_facs,aes(Var2,Nnat,fill = Beta_Cell)) + geom_boxplot() + 
-  labs(y = 'Log Expression',title = paste('Log2FC = ',facs$log2FoldChange[facs$Symbol == 'Nnat'],' P-val = ',facs$padj[facs$Symbol == 'Nnat']),
-       x = 'Beta Cell')
-facs$abs_lfc <- abs(facs$log2FoldChange)
-facs$sig_p <- facs$padj < 0.05 & facs$abs_lfc > 2 #& facs$baseMean > 2000
-facs$log_baseMean <- log10(facs$baseMean)
-
-
-```
-
-
-
-```{r}
-summary(as.vector(beta_sce@assays$RNA['Nnat',beta_sce$development_stage %in% c('Late Beta')]))
-length(which(as.vector(beta_sce@assays$RNA['Nnat',beta_sce$development_stage %in% c('Adult Beta')]) > 0.4))
-table(beta_sce$development_stage)
-summary(as.vector(beta_sce@assays$RNA['Nnat',beta_sce$development_stage %in% c('Adult Beta')]))
-
-adult_beta$nnat <- ifelse(as.vector(beta_sce@assays$RNA['Nnat',beta_sce$development_stage %in% c('Adult Beta')]) > 0,'Nnat+','Nnat-')
-table(adult_beta$nnat)
-Idents(adult_beta) <- 'nnat'
-VlnPlot(adult_beta,c(facs$Symbol[1:7],'Cd81','Mafb','Sst'))
-
-```
-
-
-```{r}
-nnat_df <- data.frame(Ins1 = as.vector(adult_beta@assays$RNA['Ins1',]),
-                      Ins2 = as.vector(adult_beta@assays$RNA['Ins2',]),
-                      Nnat = as.vector(adult_beta@assays$RNA['Nnat',]),
-                      Rbp4 = as.vector(adult_beta@assays$RNA['Rbp4',]))
-ggplot(nnat_df,aes(Ins2,Nnat,color = Rbp4)) + geom_point(alpha = 1) +
-  scale_color_gradient(low = 'gray',high = 'red')
-table(nnat_df$Nnat  < 2)
-DimPlot(adult_beta,group.by = 'nnat')
-adult_beta[['RNA']]@meta.features <- data.frame(row.names =
-                                                 rownames(adult_beta[['RNA']]))
-adult_beta <- FindVariableFeatures(object = adult_beta, mean.function =
-                                    ExpMean, dispersion.function =
-                                    LogVMR,x.low.cutoff = 0.0125, 
-                                  x.high.cutoff = 3, y.cutoff = 0.5)
-adult_beta <- ScaleData(object = adult_beta, vars.to.regress = c("nCount_RNA"))
-adult_beta <- RunPCA(adult_beta)
-adult_beta <- FindNeighbors(adult_beta,dims = 1:15)
-adult_beta <- FindClusters(adult_beta,resolution = 0.8)
-adult_beta <- RunUMAP(adult_beta, dims = 1:15)
-DimPlot(adult_beta,group.by = 'nnat')
-
-```
-
 
 ## Make Plots
 
@@ -468,8 +397,6 @@ DimPlot(sce[,sce$seurat_clusters != 15],group.by = 'celltype') +
         plot.title = element_text(size=16,  face = 'plain'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'italic')) 
-#TODO Update Relative Path
-ggsave('./Figures/fulldataset_umap_italic.png')
 ######################################################
 #Cell Type Proportion Bar Plot
 ggplot(cell_prop,aes(Var1,Proportion,fill = Var2)) + 
@@ -486,8 +413,6 @@ plot.title = element_text(hjust = 0.5)) +
         plot.title = element_text(size=16,  face = 'plain'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'italic')) 
-#TODO Update Relative Path
-ggsave('./Figures/beta_prop_italic.png')
 #############################################
 FeaturePlot(sce,'Nnat') +
   labs(x='UMAP1',y = 'UMAP2') +
@@ -495,9 +420,6 @@ FeaturePlot(sce,'Nnat') +
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain'))
-#TODO Update Relative Path
-ggsave('./Figures/nnat_umap.png')
-
 #################################################################
 plot_cells(cds[,colData(cds)$seurat_clusters != 15],
                  color_cells_by = "pseudotime",
@@ -517,8 +439,6 @@ plot_cells(cds[,colData(cds)$seurat_clusters != 15],
         axis.title = element_text(size=16,  face = 'plain',  family="sans"),
         legend.text = element_text(size = 16, face = 'italic',  family="sans"),
         axis.line=element_line(linewidth = 10)) 
-#TODO Update Relative Path
-ggsave('./Figures/pseudotime.png')
 
 ```
 
@@ -532,8 +452,7 @@ VlnPlot(beta_sce,'Ins1') +
         axis.title = element_text(size=16,  face = 'plain'),
           axis.text = element_text(face = 'italic'),
         legend.text = element_text(size = 16, face = 'italic')) 
-#TODO Update Relative Path
-ggsave('./Figures/ins1.png')
+
 # ggsave('./Figures/ins1.eps')
 VlnPlot(beta_sce,'Ins2') +
     labs(x = 'Cell State') +
@@ -542,8 +461,7 @@ VlnPlot(beta_sce,'Ins2') +
         axis.title = element_text(size=16,  face = 'plain'),
           axis.text = element_text(face = 'italic'),
         legend.text = element_text(size = 16, face = 'italic')) 
-#TODO Update Relative Path
-ggsave('./Figures/ins2.png')
+
 # ggsave('./Figures/ins2.eps')
 VlnPlot(beta_sce,'Nnat') +
     labs(x = 'Cell State') +
@@ -552,8 +470,7 @@ VlnPlot(beta_sce,'Nnat') +
         axis.title = element_text(size=16,  face = 'plain'),
         axis.text = element_text(face = 'italic'),
         legend.text = element_text(size = 16, face = 'italic')) 
-#TODO Update Relative Path
-ggsave('./Figures/nnat.png')
+
 
 
 for (gene_marker in c("Spp1","Neurog3","Fev","Pdx1","Pax4","Ins1","Nnat","Iapp")){
@@ -564,8 +481,7 @@ print(  VlnPlot(beta_sce,gene_marker) +
         axis.title = element_text(size=16,  face = 'plain'),
           axis.text = element_text(face = 'italic'),
         legend.text = element_text(size = 16, face = 'italic')) )
-  #TODO Update Relative Path
-  ggsave(paste('./Figures/',gene_marker,".png",sep = ""))
+
 }
 
 ```
@@ -582,8 +498,7 @@ for (gene_marker in c("Spp1","Neurog3","Fev","Pdx1","Pax4","Ins1","Nnat","Iapp")
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain')) )
-  #TODO Update Relative Path
-  ggsave(paste('./Figures/',gene_marker,"_umap.png",sep = ""))
+
 }
 DimPlot(beta,group.by = 'celltype') +
   labs(title = 'Mouse Beta Cells E12-E17',x='UMAP1',y = 'UMAP2')    +
@@ -593,8 +508,7 @@ DimPlot(beta,group.by = 'celltype') +
         plot.title = element_text(size=16,  face = 'plain'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'italic')) 
-#TODO Update Relative Path
-ggsave('./Figures/beta_umap_italic.png')
+
 ```
 ```{r}
 ##A Adult Islet plots
@@ -618,8 +532,7 @@ FeaturePlot(adult_sce,'Nnat')  +
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain')) 
-#TODO Update Relative Path
-ggsave('./Figures/adult_nnat.png')
+
 ####
 FeaturePlot(adult_sce,'Ins1') +
   labs(x = 'UMAP1',y = "UMAP2") +
@@ -627,8 +540,7 @@ FeaturePlot(adult_sce,'Ins1') +
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain')) 
-#TODO Update Relative Path
-ggsave('./Figures/adult_ins1.png')
+
 ####
 FeaturePlot(adult_sce,'Gcg') +
   labs(x = 'UMAP1',y = "UMAP2") +
@@ -636,8 +548,7 @@ FeaturePlot(adult_sce,'Gcg') +
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain')) 
-#TODO Update Relative Path
-ggsave('./Figures/adult_gcg.png')
+
 ####
 FeaturePlot(adult_sce,'Sst') +
   labs(x = 'UMAP1',y = "UMAP2") +
@@ -645,8 +556,7 @@ FeaturePlot(adult_sce,'Sst') +
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain')) 
-#TODO Update Relative Path
-ggsave('./Figures/adult_sst.png')
+
 ####
 adult_sce$cell_type <- as.character(adult_sce$cell_type)
 adult_sce$cell_type[adult_sce$cell_type == "pancreatic A cell"] <- "Alpha"
@@ -666,28 +576,24 @@ DimPlot(adult_sce) +
                                   hjust = 0.5),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain'))
-#TODO Update Relative Path
-ggsave('./Figures/adult_celltype.png')
+
 
 
 #### HVG via scran package
 library(scran)
+#Adult beta cells
 adult_beta <- as.SingleCellExperiment(adult_beta)
 dec <- modelGeneVar(adult_beta)
 hvg.var <- getTopHVGs(adult_beta, n=500)
 which(hvg.var == 'Nnat')
 dec <- dec[order(dec$bio,decreasing = T),]
-#TODO Update Relative Path
-write.csv(dec,'./Manuscript/AdrienO_Figure_Panels231020/hvg_list_adult_beta.csv')
 
-
+#Embryonic beta cells
 beta <- as.SingleCellExperiment(beta)
 dec <- modelGeneVar(beta)
 hvg.var <- getTopHVGs(beta, n=500)
 which(hvg.var == 'Nnat')
 dec <- dec[order(dec$bio,decreasing = T),]
-#TODO Update Relative Path
-write.csv(dec,'./Manuscript/AdrienO_Figure_Panels231020/hvg_list_sneddon_beta.csv')
 
 
 sce <- as.SingleCellExperiment(sce)
@@ -695,8 +601,7 @@ dec <- modelGeneVar(sce)
 hvg.var <- getTopHVGs(sce, n=500)
 which(hvg.var == 'Nnat')
 dec <- dec[order(dec$bio,decreasing = T),]
-#TODO Update Relative Path
-write.csv(dec,'./Manuscript/AdrienO_Figure_Panels231020/hvg_list_sneddon_full.csv')
+
 ```
 
 ```{r}
@@ -710,8 +615,7 @@ for(marker in markers){
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain'))
   print(p1)
-  #TODO Update Relative Path
-  ggsave(paste("./Figures/embryonic_",marker,".png",sep =''))
+
 }
 
 ```
