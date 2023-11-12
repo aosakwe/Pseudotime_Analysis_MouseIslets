@@ -17,6 +17,7 @@ This analysis uses data from the Byrnes et al. study from the Sneddon group [in 
 
 -   [full objects](https://figshare.com/collections/Lineage_dynamics_of_murine_pancreatic_development_at_single-cell_resolution/4158458)
 -   [10X Data Files (GSE101099)](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE101099)
+-   [10X Data Files (GSE128565)](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE128565)
 
 This analysis script makes use of the 10X Data files store in the GEO (see above).
 
