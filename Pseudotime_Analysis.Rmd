@@ -365,6 +365,70 @@ beta_sce <- FindClusters(beta_sce,resolution = 0.8)
 beta_sce <-RunUMAP(beta_sce, reduction = "harmony", dims = 1:30)
 DimPlot(beta_sce,group.by = c("orig.ident","development_stage"))
 ```
+# Repeat for Full datasets
+
+```{r}
+library(biomaRt)
+ensembl <- useMart("ensembl", dataset="mmusculus_gene_ensembl")
+gene <- getBM(attributes=c('ensembl_gene_id','external_gene_name'), filters = 'ensembl_gene_id', values = rownames(adult_sce), mart = ensembl)
+gene <- distinct(gene)
+
+
+sce$development_stage <- sce$dev_stage
+
+adult_sce$development_stage <- 'Adult'
+adult_sce$celltype <- NA
+adult_sce$celltype[adult_sce$cell_type == "pancreatic A cell"] <- 'Adult Alpha'
+adult_sce$celltype[adult_sce$cell_type == "pancreatic D cell"] <- 'Adult Delta'
+adult_sce$celltype[adult_sce$cell_type == "pancreatic PP cell"] <- 'Adult PP'
+adult_sce$celltype[adult_sce$cell_type == "type B pancreatic cell"] <- 'Adult Beta'
+
+adult_sce <- adult_sce[rownames(adult_sce) %in% gene$ensembl_gene_id,]
+id <- match(rownames(adult_sce),gene$ensembl_gene_id)
+table(rownames(adult_sce) == gene$ensembl_gene_id[id])
+rownames(adult_sce@assays$RNA@counts)<- gene$external_gene_name[id]
+rownames(adult_sce@assays$RNA@data)<- gene$external_gene_name[id]
+adult_sce
+
+#Aligning Genes
+adult_sce <- adult_sce[rownames(adult_sce) %in% rownames(sce),]
+sce <- sce[rownames(sce) %in% rownames(adult_sce),]
+
+####Merging
+merge_sce <- merge(sce,adult_sce,add.cell.ids = c('Embryonic',"Adult"))
+
+merge_sce <- FindVariableFeatures(object = merge_sce, mean.function =
+                                    ExpMean, dispersion.function =
+                                    LogVMR,x.low.cutoff = 0.0125, 
+                                  x.high.cutoff = 3, y.cutoff = 0.5)
+merge_sce <- ScaleData(object = merge_sce, vars.to.regress = c("nCount_RNA"))
+merge_sce <- RunPCA(merge_sce)
+merge_sce <- FindNeighbors(merge_sce,dims = 1:15)
+merge_sce <- FindClusters(merge_sce,resolution = 0.8)
+merge_sce <- RunUMAP(merge_sce, dims = 1:15)
+UMAPPlot(merge_sce,group.by = 'orig.ident')
+
+
+## Adjust labels
+merge_sce$celltype <- factor(merge_sce$celltype,levels = 
+                         c('Ngn3+/Spp1+',"Ngn3+","Fev+/Chgb+",'Early Beta','Late Beta',
+                           'Adult Beta',
+                           'Alpha','Adult Alpha','Delta','Adult Delta','Ductal','Epsilon','Prolif. Acinar','Acinar','Adult PP',"Enterochromaffin","Erythroid-Like",'Fibroblast'))
+
+library(harmony)
+merge_sce$donor_id[is.na(merge_sce$donor_id)] <- sce$orig.ident
+merge_sce <- RunHarmony(merge_sce,group.by.vars = 'development_stage')
+merge_sce <- FindNeighbors(merge_sce,dims = 1:15,reduction = 'harmony')
+merge_sce <- FindClusters(merge_sce,resolution = 0.8)
+
+merge_sce <-RunUMAP(merge_sce, reduction = "harmony", dims = 1:30)
+DimPlot(merge_sce,group.by = c("orig.ident","development_stage"))
+DimPlot(merge_sce,group.by = 'celltype') + DimPlot(merge_sce,group.by = 'seurat_clusters')
+DimPlot(merge_sce[,merge_sce$development_stage != 'Adult'],group.by = c("celltype")) + DimPlot(merge_sce[,merge_sce$development_stage == 'Adult'],group.by = 'celltype')
+
+
+DimPlot(merge_sce[,merge_sce$celltype %in% c('Acinar','Adult PP',"Enterochromaffin","Erythroid-Like",'Fibroblast')],group.by = 'celltype')
+```
 
 
 ```{r}
@@ -582,9 +646,9 @@ DimPlot(adult_sce) +
 #### HVG via scran package
 library(scran)
 #Adult beta cells
-adult_beta <- as.SingleCellExperiment(adult_beta)
-dec <- modelGeneVar(adult_beta)
-hvg.var <- getTopHVGs(adult_beta, n=500)
+adult_sce <- as.SingleCellExperiment(adult_sce)
+dec <- modelGeneVar(adult_sce)
+hvg.var <- getTopHVGs(adult_sce, n=500)
 which(hvg.var == 'Nnat')
 dec <- dec[order(dec$bio,decreasing = T),]
 
@@ -618,6 +682,60 @@ for(marker in markers){
 
 }
 
+```
+
+## Final Reviewer Plots
+```{r}
+DimPlot(merge_sce,group.by = c("development_stage")) +
+  labs(title = 'Embryo-Adult Mouse Islet Cells',
+       x = 'UMAP1',y = "UMAP2",
+       color  = 'Development Stage') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+ggsave('./Figures/Reviewer_Comments/full_harmony_devstage.png')
+DimPlot(merge_sce[,!is.na(merge_sce$celltype)],group.by = 'celltype')  +
+  labs(title = 'Embryo-Adult Mouse Islet Cells',
+       x = 'UMAP1',y = "UMAP2",
+       color = 'Celltype') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) 
+ggsave('./Figures/Reviewer_Comments/full_harmony_celltype.png')
+DimPlot(merge_sce,group.by = 'seurat_clusters') +
+  labs(title = 'Embryo-Adult Mouse Islet Cells',
+       x = 'UMAP1',y = "UMAP2",
+       color ='Clusters') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+ggsave('./Figures/Reviewer_Comments/full_harmony_clusters.png')
+DimPlot(merge_sce[,merge_sce$development_stage != 'Adult'],group.by = c("celltype")) +
+  labs(title = 'Embryo Mouse Islet Cells',
+       x = 'UMAP1',y = "UMAP2",
+       color = 'Celltype') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) 
+ggsave('./Figures/Reviewer_Comments/full_harmony_embryocelltype.png')
+DimPlot(merge_sce[,merge_sce$development_stage == 'Adult'],group.by = 'celltype') +
+  labs(title = 'Adult Mouse Islet Cells',
+       x = 'UMAP1',y = "UMAP2",
+       color = 'Celltype') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) 
+ggsave('./Figures/Reviewer_Comments/full_harmony_adultcelltype.png')
 ```
 
 
