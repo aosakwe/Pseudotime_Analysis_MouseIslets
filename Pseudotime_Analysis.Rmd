@@ -188,8 +188,13 @@ UMAPPlot(sce,group.by = 'orig.ident') +
   theme(text=element_text(size=16,  family="sans"),
         plot.title = element_text(size=16,  face = 'plain'),
         axis.title = element_text(size=16,  face = 'plain'))
-
+batch_sce <- sce
+sapply(batch_sce$orig.ident,function(a){
+  temp <- strsplit(a,'_')
+  paste(unlist(temp)[-1],collapse = "_")
+  })
 ```
+
 
 ### Harmony Alignment
 
@@ -252,7 +257,8 @@ DimPlot(sce,group.by = 'celltype') +
         legend.text = element_text(size = 16, face = 'italic')) 
 
 #Cell Type Proportion Bar Plot
-cell_prop <- as.data.frame(table(sce$dev_stage[sce$celltype %in% c('Ngn3+/Spp1+',"Ngn3+",'Fev+/Chgb+',"Early Beta","Late Beta")],sce$celltype[sce$celltype %in% c('Ngn3+/Spp1+','Ngn3+','Fev+/Chgb+',"Early Beta","Late Beta")])) %>%
+cell_prop <- as.data.frame(table(sce$dev_stage[sce$celltype %in% c('Ngn3+/Spp1+',"Ngn3+",'Fev+/Chgb+',"Early Beta","Late Beta")],
+                                 sce$celltype[sce$celltype %in% c('Ngn3+/Spp1+','Ngn3+','Fev+/Chgb+',"Early Beta","Late Beta")])) %>%
   group_by(Var1) %>%
   mutate(Proportion = Freq / sum(Freq))
 cell_prop <- na.omit(cell_prop)
@@ -325,7 +331,9 @@ adult_beta$development_stage <- 'Adult'
 adult_beta$orig.ident <- adult_beta$donor_id
 library(biomaRt)
 ensembl <- useMart("ensembl", dataset="mmusculus_gene_ensembl")
-gene <- getBM(attributes=c('ensembl_gene_id','external_gene_name'), filters = 'ensembl_gene_id', values = rownames(adult_beta), mart = ensembl)
+gene <- getBM(attributes=c('ensembl_gene_id','external_gene_name'),
+              filters = 'ensembl_gene_id', values = rownames(adult_beta),
+              mart = ensembl)
 gene <- distinct(gene)
 
 
@@ -369,8 +377,11 @@ DimPlot(beta_sce,group.by = c("orig.ident","development_stage"))
 
 ```{r}
 library(biomaRt)
+adult_sce <- readRDS('./Datasets/mice_adult_pancreas.rds')
 ensembl <- useMart("ensembl", dataset="mmusculus_gene_ensembl")
-gene <- getBM(attributes=c('ensembl_gene_id','external_gene_name'), filters = 'ensembl_gene_id', values = rownames(adult_sce), mart = ensembl)
+gene <- getBM(attributes=c('ensembl_gene_id','external_gene_name'),
+              filters = 'ensembl_gene_id', values = rownames(adult_sce),
+              mart = ensembl)
 gene <- distinct(gene)
 
 
@@ -428,6 +439,9 @@ DimPlot(merge_sce[,merge_sce$development_stage != 'Adult'],group.by = c("celltyp
 
 
 DimPlot(merge_sce[,merge_sce$celltype %in% c('Acinar','Adult PP',"Enterochromaffin","Erythroid-Like",'Fibroblast')],group.by = 'celltype')
+
+
+#Bar plot for beta cell clusters
 ```
 
 
@@ -695,7 +709,7 @@ DimPlot(merge_sce,group.by = c("development_stage")) +
                                   hjust = 0.5),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain'))
-ggsave('./Figures/Reviewer_Comments/full_harmony_devstage.png')
+#ggsave('./Figures/Reviewer_Comments/full_harmony_devstage.png')
 DimPlot(merge_sce[,!is.na(merge_sce$celltype)],group.by = 'celltype')  +
   labs(title = 'Embryo-Adult Mouse Islet Cells',
        x = 'UMAP1',y = "UMAP2",
@@ -705,7 +719,7 @@ DimPlot(merge_sce[,!is.na(merge_sce$celltype)],group.by = 'celltype')  +
                                   hjust = 0.5),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain')) 
-ggsave('./Figures/Reviewer_Comments/full_harmony_celltype.png')
+#ggsave('./Figures/Reviewer_Comments/full_harmony_celltype.png')
 DimPlot(merge_sce,group.by = 'seurat_clusters') +
   labs(title = 'Embryo-Adult Mouse Islet Cells',
        x = 'UMAP1',y = "UMAP2",
@@ -715,7 +729,7 @@ DimPlot(merge_sce,group.by = 'seurat_clusters') +
                                   hjust = 0.5),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain'))
-ggsave('./Figures/Reviewer_Comments/full_harmony_clusters.png')
+#ggsave('./Figures/Reviewer_Comments/full_harmony_clusters.png')
 DimPlot(merge_sce[,merge_sce$development_stage != 'Adult'],group.by = c("celltype")) +
   labs(title = 'Embryo Mouse Islet Cells',
        x = 'UMAP1',y = "UMAP2",
@@ -725,7 +739,7 @@ DimPlot(merge_sce[,merge_sce$development_stage != 'Adult'],group.by = c("celltyp
                                   hjust = 0.5),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain')) 
-ggsave('./Figures/Reviewer_Comments/full_harmony_embryocelltype.png')
+#ggsave('./Figures/Reviewer_Comments/full_harmony_embryocelltype.png')
 DimPlot(merge_sce[,merge_sce$development_stage == 'Adult'],group.by = 'celltype') +
   labs(title = 'Adult Mouse Islet Cells',
        x = 'UMAP1',y = "UMAP2",
@@ -735,7 +749,115 @@ DimPlot(merge_sce[,merge_sce$development_stage == 'Adult'],group.by = 'celltype'
                                   hjust = 0.5),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'plain')) 
-ggsave('./Figures/Reviewer_Comments/full_harmony_adultcelltype.png')
+#ggsave('./Figures/Reviewer_Comments/full_harmony_adultcelltype.png')
+
+
+## Bar plot
+#Cell Type Proportion Bar Plot
+cell_prop <- as.data.frame(table(merge_sce$celltype,merge_sce$seurat_clusters)[c(3,4,5,6),c(1,2,4,5)]) %>%
+  group_by(Var1) %>%
+  mutate(Proportion = Freq / sum(Freq))
+
+
+cell_prop <- na.omit(cell_prop)
+cell_prop$Var1 <- factor(cell_prop$Var1,levels =
+                           c('Fev+/Chgb+',"Early Beta","Late Beta","Adult Beta"))
+cell_prop$Var2 <- factor(cell_prop$Var2,levels = c("3","4","1","0"))
+custom_palette <- c(
+  RColorBrewer::brewer.pal(8, "Set1"),   # Use 8 colors from Set2
+  RColorBrewer::brewer.pal(8, "Set3")               # Use 6 colors from Viridis
+)
+ggplot(cell_prop,aes(Var1,Proportion,fill = Var2)) + 
+  geom_bar(stat = 'identity',color = 'black') + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"),
+plot.title = element_text(hjust = 0.5)) +
+    scale_fill_manual(values = custom_palette) +
+  scale_y_continuous(expand = expansion(mult = 0)) +
+  labs(x = 'Cell State',y = 'Cluster Proportion',
+       title = '',
+       fill = 'Cluster')    +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'italic')) 
+```
+
+
+```{r}
+DimPlot(batch_sce,group.by = 'orig.ident') +
+  labs(title = 'Pre-Batch Correction Embryonic Islet',
+       x = 'UMAP1',y = "UMAP2",
+       color = 'Batch') +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain')) 
+ggsave('./Figures/Reviewer_Comments/pre_batch_devstage.png')
+
+FeaturePlot(batch_sce,'Ins1')+
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+ ggsave('./Figures/Reviewer_Comments/pre_batch_Ins1.png')
+ FeaturePlot(batch_sce,'Gcg')+
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+ggsave('./Figures/Reviewer_Comments/pre_batch_Gcg.png') 
+FeaturePlot(batch_sce,'Nnat')+
+labs(x = 'UMAP1',y = "UMAP2") +
+theme(text=element_text(size=16,  family="sans"),
+      plot.title = element_text(size=16,  face = 'plain',
+                                hjust = 0.5),
+      axis.title = element_text(size=16,  face = 'plain'),
+      legend.text = element_text(size = 16, face = 'plain'))
+ggsave('./Figures/Reviewer_Comments/pre_batch_Nnat.png')
+
+## After correction
+DimPlot(sce,group.by = 'orig.ident') + 
+  labs(title = 'Post-Batch Correction Embryonic Islets',x = 'UMAP1',y = 'UMAP2',
+       color = 'Batch')  +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain'),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))  
+ggsave('./Figures/Reviewer_Comments/post_batch_devstage.png')
+
+
+
+FeaturePlot(sce,'Ins1')+
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+ ggsave('./Figures/Reviewer_Comments/post_batch_Ins1.png')
+ FeaturePlot(sce,'Gcg')+
+  labs(x = 'UMAP1',y = "UMAP2") +
+  theme(text=element_text(size=16,  family="sans"),
+        plot.title = element_text(size=16,  face = 'plain',
+                                  hjust = 0.5),
+        axis.title = element_text(size=16,  face = 'plain'),
+        legend.text = element_text(size = 16, face = 'plain'))
+ggsave('./Figures/Reviewer_Comments/post_batch_Gcg.png') 
+FeaturePlot(sce,'Nnat')+
+labs(x = 'UMAP1',y = "UMAP2") +
+theme(text=element_text(size=16,  family="sans"),
+      plot.title = element_text(size=16,  face = 'plain',
+                                hjust = 0.5),
+      axis.title = element_text(size=16,  face = 'plain'),
+      legend.text = element_text(size = 16, face = 'plain'))
+ggsave('./Figures/Reviewer_Comments/post_batch_Nnat.png')
+
 ```
 
 
