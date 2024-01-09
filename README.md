@@ -11,4 +11,4 @@ The datasets used were acquired from the following studies:
 
 [Preprint available here](https://doi.org/10.1101/2023.02.04.527050)
 
-[Figure Panel](https://github.com/aosakwe/Pseudotime_Analysis_MouseIslets/blob/main/Main_Figure_AdrienO.png)
+![Figure Panel](https://github.com/aosakwe/Pseudotime_Analysis_MouseIslets/blob/main/Main_Figure_AdrienO.png)
