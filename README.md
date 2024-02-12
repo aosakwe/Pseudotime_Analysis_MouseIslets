@@ -1,7 +1,7 @@
 # Pseudotime Analysis of Embryonic Mouse Islets
 Pseudotime Analysis of embryonic mouse islets to uncover the role of Nnat in establishing mature beta cell populations.
 
-This analysis was done for the study titled: *Establishment of beta cell heterogeneity via differential CpG methylation at Nnat*
+This analysis was done for the study titled: *Differential CpG methylation at Nnat in the early establishment of beta cell heterogeneity*
 
 This analysis depends on the [Seurat v4.3](https://satijalab.org/seurat/) and [Monocle 3](https://cole-trapnell-lab.github.io/monocle3/) packages in R.
 
