@@ -102,6 +102,8 @@ endo12 <- FindClusters(endo12,resolution = 0.8)
 endo12 <- RunUMAP(endo12, dims = 1:15)
 UMAPPlot(endo12)
 FeaturePlot(endo12,c('Ins1','Ins2','Nnat','Gcg','Spp1','Neurog3','Fev'))
+
+saveRDS(endo12,"./Datasets/Sneddon/endo12_v2.rds")
 ```
 #### E14
 ```{r}
@@ -127,7 +129,7 @@ endo14 <- FindClusters(endo14,resolution = 0.8)
 endo14 <- RunUMAP(endo14, dims = 1:15)
 UMAPPlot(endo14)
 FeaturePlot(endo14,c('Ins1','Ins2','Nnat','Gcg','Spp1','Neurog3','Fev'))
-
+saveRDS(endo14,"./Datasets/Sneddon/endo14_v2.rds")
 ```
 
 
@@ -158,7 +160,7 @@ endo17 <- FindClusters(endo17,resolution = 0.8)
 endo17 <- RunUMAP(endo17, dims = 1:15)
 UMAPPlot(endo17)
 FeaturePlot(endo17,c('Ins1','Ins2','Nnat','Gcg','Spp1','Neurog3','Fev'))
-
+saveRDS(endo17,"./Datasets/Sneddon/endo17_v2.rds")
 ```
 
 
@@ -470,20 +472,25 @@ Idents(beta_sce) <- 'development_stage'
 # A-C + Supp
 ```{r}
 DimPlot(sce[,sce$seurat_clusters != 15],group.by = 'celltype') +
-  labs(title = 'Mouse Pancreas Cells E12-E17',x='UMAP1',y = 'UMAP2')    +
+  labs(title = 'E12.5-E17.5',x='UMAP1',y = 'UMAP2')    +
   theme(text=element_text(size=16,  family="sans"),
         plot.title = element_text(size=16,  face = 'plain'),
         axis.title = element_text(size=16,  face = 'plain'),
-        legend.text = element_text(size = 16, face = 'italic')) 
+        legend.text = element_text(size = 16, face = 'italic')) +
+   scale_x_continuous(breaks = seq(-30,16,by = 2),
+                      limits = c(-12,12)) +
+  scale_y_continuous(breaks = seq(-30,16,by = 2),
+                     limits = c(-12,10))
+ggsave("./Figures/Final_Edits_Feb2024/fig1_a.svg",dpi = 600)
 ######################################################
 #Cell Type Proportion Bar Plot
-ggplot(cell_prop,aes(Var1,Proportion,fill = Var2)) + 
+ggplot(na.omit(cell_prop),aes(Var1,Proportion,fill = Var2)) + 
   geom_bar(stat = 'identity',color = 'black') + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 panel.background = element_blank(), axis.line = element_line(colour = "black"),
 plot.title = element_text(hjust = 0.5)) +
     scale_fill_manual(values = custom_palette) +
-  scale_y_continuous(expand = expansion(mult = 0)) +
+  scale_y_continuous(expand = expansion(c(0,0.1))) +
   labs(x = 'Embryonic Stage',y = 'Cell State Proportion',
        title = 'Beta Cell Timecourse from E12-E17',
        fill = 'Cell State')    +
@@ -491,13 +498,19 @@ plot.title = element_text(hjust = 0.5)) +
         plot.title = element_text(size=16,  face = 'plain'),
         axis.title = element_text(size=16,  face = 'plain'),
         legend.text = element_text(size = 16, face = 'italic')) 
+ggsave("./Figures/Final_Edits_Feb2024/fig1_d.svg",dpi = 600)
 #############################################
 FeaturePlot(sce,'Nnat') +
   labs(x='UMAP1',y = 'UMAP2') +
   theme(text=element_text(size=16,  family="sans"),
-        plot.title = element_text(size=16,  face = 'italic'),
+        plot.title = element_text(size=20,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
-        legend.text = element_text(size = 16, face = 'plain'))
+        legend.text = element_text(size = 16, face = 'plain')) +
+   scale_x_continuous(breaks = seq(-30,16,by = 2),
+                      limits = c(-12,12)) +
+  scale_y_continuous(breaks = seq(-30,16,by = 2),
+                     limits = c(-12,10))
+ggsave("./Figures/Final_Edits_Feb2024/fig1_c.svg",dpi = 600)
 #################################################################
 plot_cells(cds[,colData(cds)$seurat_clusters != 15],
                  color_cells_by = "pseudotime",
@@ -508,7 +521,7 @@ plot_cells(cds[,colData(cds)$seurat_clusters != 15],
                  graph_label_size=1.5,
                  cell_size = 1,
                  trajectory_graph_color = 'black') +
-        labs(title ='Pseudotime Analysis E12-E17',
+        labs(title ='E12.5-E17.5',
              x = 'UMAP1',
              y = 'UMAP2',
              fill = 'Pseudotime')  +
@@ -516,7 +529,12 @@ plot_cells(cds[,colData(cds)$seurat_clusters != 15],
         plot.title = element_text(size=16,  face = 'plain',hjust = 0.5,  family="sans"),
         axis.title = element_text(size=16,  face = 'plain',  family="sans"),
         legend.text = element_text(size = 16, face = 'italic',  family="sans"),
-        axis.line=element_line(linewidth = 10)) 
+        axis.line=element_line(linewidth = 10))  +
+   scale_x_continuous(breaks = seq(-30,16,by = 2),
+                      limits = c(-12,12)) +
+  scale_y_continuous(breaks = seq(-30,16,by = 2),
+                     limits = c(-12,10))
+ggsave("./Figures/Final_Edits_Feb2024/fig1_b.svg",dpi = 600)
 
 ```
 
@@ -529,8 +547,10 @@ VlnPlot(beta_sce,'Ins1') +
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
           axis.text = element_text(face = 'italic'),
-        legend.text = element_text(size = 16, face = 'italic')) 
-
+        legend.text = element_text(size = 16, face = 'italic'))  +
+  scale_y_continuous(breaks = seq(0,10,by = 2),
+                     limits = c(0,10))
+ggsave("./Figures/Final_Edits_Feb2024/fig1_e.svg",dpi = 600)
 # ggsave('./Figures/ins1.eps')
 VlnPlot(beta_sce,'Ins2') +
     labs(x = 'Cell State') +
@@ -538,7 +558,9 @@ VlnPlot(beta_sce,'Ins2') +
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
           axis.text = element_text(face = 'italic'),
-        legend.text = element_text(size = 16, face = 'italic')) 
+        legend.text = element_text(size = 16, face = 'italic'))  +
+  scale_y_continuous(breaks = seq(0,12,by = 2),
+                     limits = c(0,12))
 
 # ggsave('./Figures/ins2.eps')
 VlnPlot(beta_sce,'Nnat') +
@@ -547,20 +569,22 @@ VlnPlot(beta_sce,'Nnat') +
         plot.title = element_text(size=16,  face = 'italic'),
         axis.title = element_text(size=16,  face = 'plain'),
         axis.text = element_text(face = 'italic'),
-        legend.text = element_text(size = 16, face = 'italic')) 
+        legend.text = element_text(size = 16, face = 'italic'))  +
+  scale_y_continuous(breaks = seq(0,8,by = 2),
+                     limits = c(0,6.5))
+ggsave("./Figures/Final_Edits_Feb2024/fig1_f.svg",dpi = 600)
 
-
-
-for (gene_marker in c("Spp1","Neurog3","Fev","Pdx1","Pax4","Ins1","Nnat","Iapp")){
-print(  VlnPlot(beta_sce,gene_marker) +
-    labs(x = 'Cell State') +
-  theme(text=element_text(size=16,  family="sans"),
-        plot.title = element_text(size=16,  face = 'italic'),
-        axis.title = element_text(size=16,  face = 'plain'),
-          axis.text = element_text(face = 'italic'),
-        legend.text = element_text(size = 16, face = 'italic')) )
-
-}
+# 
+# for (gene_marker in c("Spp1","Neurog3","Fev","Pdx1","Pax4","Ins1","Nnat","Iapp")){
+# print(  VlnPlot(beta_sce,gene_marker) +
+#     labs(x = 'Cell State') +
+#   theme(text=element_text(size=16,  family="sans"),
+#         plot.title = element_text(size=16,  face = 'italic'),
+#         axis.title = element_text(size=16,  face = 'plain'),
+#           axis.text = element_text(face = 'italic'),
+#         legend.text = element_text(size = 16, face = 'italic')) )
+# 
+# }
 
 ```
 
